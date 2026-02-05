@@ -25,12 +25,13 @@
 
         <main class="content">
             <div class="workspace">
-                <div class="question-header-card glass-panel">
-                    <span class="qh-badge">Temat Treningowy (#{{ currentQuestion.id }})</span>
-                    <h3>{{ currentQuestion.pytanie }}</h3>
-                </div>
-
+                
                 <div v-if="!checkMode" class="editor-mode">
+                    <div class="question-header-card glass-panel">
+                        <span class="qh-badge">Temat Treningowy (#{{ currentQuestion.id }})</span>
+                        <h3>{{ currentQuestion.pytanie }}</h3>
+                    </div>
+
                     <div class="editor-grid">
                         <section class="editor-card glass-panel">
                             <div class="card-title"><span class="step-num">1</span> Wstęp i Teza</div>
@@ -67,63 +68,54 @@
                 </div>
 
                 <div v-else class="comparison-view">
-                    <div class="comparison-header glass-panel sticky-top">
-                        <button @click="checkMode = false" class="btn-back">← Popraw odpowiedź</button>
-                        <div class="score-display-mini">
-                            <span class="label">Wynik:</span>
-                            <span class="value" :class="{'high-score': totalScore >= 80}">{{ totalScore }}%</span>
+                    
+                    <div class="result-dashboard glass-panel">
+                        <div class="rd-top">
+                            <button @click="checkMode = false" class="btn-back">← Popraw</button>
+                            <div class="score-badge">
+                                <span>Wynik:</span>
+                                <strong>{{ totalScore }}%</strong>
+                            </div>
+                        </div>
+                        
+                        <h4 class="rd-question">{{ currentQuestion.pytanie }}</h4>
+                        
+                        <div class="progress-container">
+                            <div class="progress-bar" :style="{ width: totalScore + '%' }" :class="{'high': totalScore >= 80, 'med': totalScore >= 50 && totalScore < 80}"></div>
                         </div>
                     </div>
 
-                    <div class="comparison-columns">
-                        <div class="col-user">
-                            <div class="col-header user-header">Twoja Odpowiedź</div>
-                            <div class="comp-card glass-panel" v-for="(section, sName) in {
-                                '1. Wstęp': ['intro', 'thesis'],
-                                '2. Argument I': ['arg1', 'arg1_dev', 'arg1_ex', 'arg1_sum'],
-                                '3. Argument II': ['arg2', 'arg2_dev', 'arg2_ex', 'arg2_sum'],
-                                '4. Finał': ['context', 'summary']
-                            }" :key="sName">
-                                <h4>{{ sName }}</h4>
-                                <div v-for="field in section" :key="field" class="comp-item">
-                                    <span class="lbl">{{ getLabel(field) }}:</span>
-                                    <p class="user-content">{{ form[field] || '---' }}</p>
+                    <div class="comparison-feed">
+                        <div v-for="(section, sKey) in comparisonStructure" :key="sKey" class="comparison-row">
+                            
+                            <div class="comp-col user-side glass-panel">
+                                <div class="col-badge user-badge">Twoja Odpowiedź: {{ section.title }}</div>
+                                
+                                <div v-for="field in section.fields" :key="field.key" class="comp-item">
+                                    <span class="lbl">{{ field.label }}:</span>
+                                    <p class="user-content">{{ form[field.key] || '---' }}</p>
+                                    
                                     <div class="grade-selector">
                                         <button v-for="g in gradeScale" :key="g.val" 
-                                            @click="setGrade(field, g.val)"
-                                            :class="['g-btn', 'lvl-' + g.val, { active: grades[field] === g.val }]"></button>
+                                            @click="setGrade(field.key, g.val)"
+                                            :class="['g-btn', 'lvl-' + g.val, { active: grades[field.key] === g.val }]">
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="col-answer">
-                            <div class="col-header key-header">Klucz Odpowiedzi</div>
-                            <div v-if="currentPattern" class="key-container">
-                                <div class="comp-card key-panel">
-                                    <h4>Wzorzec</h4>
-                                    <div class="comp-item"><span class="lbl">Wstęp:</span><p>{{ currentPattern.wstep }}</p></div>
-                                    <div class="comp-item"><span class="lbl">Teza:</span><p>{{ currentPattern.teza }}</p></div>
+                            <div class="comp-col pattern-side glass-panel">
+                                <div class="col-badge pattern-badge">Klucz Odpowiedzi</div>
+                                
+                                <div v-if="currentPattern">
+                                    <div v-for="pField in section.patternFields" :key="pField.key" class="comp-item">
+                                        <span class="lbl">{{ pField.label }}:</span>
+                                        <p class="pattern-content">{{ currentPattern[pField.key] }}</p>
+                                    </div>
                                 </div>
-                                <div class="comp-card key-panel">
-                                    <h4>Argument I</h4>
-                                    <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ currentPattern.arg1_tytul }}</p></div>
-                                    <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ currentPattern.arg1_rozwiniecie }}</p></div>
-                                    <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ currentPattern.arg1_przyklad }}</p></div>
-                                </div>
-                                <div class="comp-card key-panel">
-                                    <h4>Argument II</h4>
-                                    <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ currentPattern.arg2_tytul }}</p></div>
-                                    <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ currentPattern.arg2_rozwiniecie }}</p></div>
-                                    <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ currentPattern.arg2_przyklad }}</p></div>
-                                </div>
-                                <div class="comp-card key-panel">
-                                    <h4>Zakończenie</h4>
-                                    <div class="comp-item"><span class="lbl">Kontekst:</span><p>{{ currentPattern.kontekst }}</p></div>
-                                    <div class="comp-item"><span class="lbl">Podsum.:</span><p>{{ currentPattern.podsumowanie }}</p></div>
-                                </div>
+                                <div v-else class="no-key-msg">Brak klucza odpowiedzi.</div>
                             </div>
-                            <div v-else class="no-key-msg glass-panel">Brak klucza odpowiedzi.</div>
+
                         </div>
                     </div>
                 </div>

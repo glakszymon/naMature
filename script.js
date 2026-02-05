@@ -38,6 +38,60 @@ createApp({
         ];
         const grades = ref({ intro:0, thesis:0, arg1:0, arg1_dev:0, arg1_ex:0, arg1_sum:0, arg2:0, arg2_dev:0, arg2_ex:0, arg2_sum:0, context:0, summary:0 });
 
+        // Struktura porównania (User <-> Pattern)
+        const comparisonStructure = {
+            section1: {
+                title: '1. Wstęp i Teza',
+                fields: [
+                    { key: 'intro', label: 'Wstęp' },
+                    { key: 'thesis', label: 'Teza' }
+                ],
+                patternFields: [
+                    { key: 'wstep', label: 'Wstęp' },
+                    { key: 'teza', label: 'Teza' }
+                ]
+            },
+            section2: {
+                title: '2. Argument I',
+                fields: [
+                    { key: 'arg1', label: 'Tytuł' },
+                    { key: 'arg1_dev', label: 'Rozwinięcie' },
+                    { key: 'arg1_ex', label: 'Przykład' },
+                    { key: 'arg1_sum', label: 'Wniosek' }
+                ],
+                patternFields: [
+                    { key: 'arg1_tytul', label: 'Tytuł' },
+                    { key: 'arg1_rozwiniecie', label: 'Rozwinięcie' },
+                    { key: 'arg1_przyklad', label: 'Przykład' }
+                ]
+            },
+            section3: {
+                title: '3. Argument II',
+                fields: [
+                    { key: 'arg2', label: 'Tytuł' },
+                    { key: 'arg2_dev', label: 'Rozwinięcie' },
+                    { key: 'arg2_ex', label: 'Przykład' },
+                    { key: 'arg2_sum', label: 'Wniosek' }
+                ],
+                patternFields: [
+                    { key: 'arg2_tytul', label: 'Tytuł' },
+                    { key: 'arg2_rozwiniecie', label: 'Rozwinięcie' },
+                    { key: 'arg2_przyklad', label: 'Przykład' }
+                ]
+            },
+            section4: {
+                title: '4. Zakończenie',
+                fields: [
+                    { key: 'context', label: 'Kontekst' },
+                    { key: 'summary', label: 'Podsumowanie' }
+                ],
+                patternFields: [
+                    { key: 'kontekst', label: 'Kontekst' },
+                    { key: 'podsumowanie', label: 'Podsumowanie' }
+                ]
+            }
+        };
+
         // --- FETCHING & INIT ---
         const fetchData = async () => {
             isLoading.value = true;
@@ -56,9 +110,7 @@ createApp({
                     login();
                 }
 
-                // Page Specific Logic
                 handlePageContext();
-
             } catch (e) {
                 console.error("Błąd pobierania danych", e);
             } finally {
@@ -68,24 +120,17 @@ createApp({
 
         const handlePageContext = () => {
             const path = window.location.pathname;
-            
-            // Logic for Egzamin.html
             if (path.includes('egzamin.html')) {
                 const qId = localStorage.getItem('current_exam_id');
-                
                 if (qId === 'random') {
                     drawRandomQuestion();
                 } else if (qId) {
                     currentQuestion.value = question_list.value.find(q => q.id == qId);
                 }
-                
-                // Load key if available for check mode
                 if (currentQuestion.value) {
                      currentPattern.value = answer_database.value.find(a => Number(a.id) === Number(currentQuestion.value.id));
                 }
             }
-
-            // Logic for Wzorzec.html
             if (path.includes('wzorzec.html')) {
                 const qId = localStorage.getItem('current_pattern_id');
                 if (qId) {
@@ -94,15 +139,13 @@ createApp({
             }
         };
 
-        // --- AUTH ---
+        // --- AUTH & NAV ---
         const login = () => {
             loginError.value = '';
             const input = usernameInput.value.trim();
             if (!input) { loginError.value = "Podaj nazwę."; return; }
-
             const userExists = authorized_users.value.some(u => u.nazwa.toLowerCase() === input.toLowerCase());
             if (!userExists) { loginError.value = "Brak użytkownika w bazie."; return; }
-
             const dbUser = authorized_users.value.find(u => u.nazwa.toLowerCase() === input.toLowerCase());
             username.value = dbUser.nazwa;
             userProgress.value = all_progress_data.value[username.value] || {};
@@ -115,41 +158,21 @@ createApp({
             window.location.href = 'index.html';
         };
 
-        // --- NAVIGATION ACTIONS ---
-        const goHome = () => {
-            window.location.href = 'index.html';
-        };
+        const goHome = () => { window.location.href = 'index.html'; };
+        const goToExam = (id) => { localStorage.setItem('current_exam_id', id); window.location.href = 'egzamin.html'; };
+        const goToExamRandom = () => { localStorage.setItem('current_exam_id', 'random'); window.location.href = 'egzamin.html'; };
+        const goToPattern = (id) => { localStorage.setItem('current_pattern_id', id); window.location.href = 'wzorzec.html'; };
 
-        const goToExam = (id) => {
-            localStorage.setItem('current_exam_id', id);
-            window.location.href = 'egzamin.html';
-        };
-
-        const goToExamRandom = () => {
-            localStorage.setItem('current_exam_id', 'random');
-            window.location.href = 'egzamin.html';
-        };
-
-        const goToPattern = (id) => {
-            localStorage.setItem('current_pattern_id', id);
-            window.location.href = 'wzorzec.html';
-        };
-
-        // --- LOGIC ---
         const drawRandomQuestion = () => {
             if (question_list.value.length === 0) return;
             const idx = Math.floor(Math.random() * question_list.value.length);
             currentQuestion.value = question_list.value[idx];
-            // Update storage so refresh keeps the same question
             localStorage.setItem('current_exam_id', currentQuestion.value.id);
-            // Load answer key for this random question
             currentPattern.value = answer_database.value.find(a => Number(a.id) === Number(currentQuestion.value.id));
         };
 
-        const getStatus = (id) => {
-            return userProgress.value[id] !== undefined ? Number(userProgress.value[id]) : 0;
-        };
-
+        const getStatus = (id) => (userProgress.value[id] !== undefined ? Number(userProgress.value[id]) : 0);
+        
         const updateStatus = async (id, status) => {
             userProgress.value[id] = status;
             try {
@@ -183,16 +206,6 @@ createApp({
             return Math.round((sum / (fields.length * 3)) * 100);
         });
 
-        const getLabel = (key) => {
-            const map = {
-                'intro': 'Wstęp', 'thesis': 'Teza',
-                'arg1': 'Arg I', 'arg1_dev': 'Rozwinięcie', 'arg1_ex': 'Przykład', 'arg1_sum': 'Wniosek',
-                'arg2': 'Arg II', 'arg2_dev': 'Rozwinięcie', 'arg2_ex': 'Przykład', 'arg2_sum': 'Wniosek',
-                'context': 'Kontekst', 'summary': 'Podsumowanie'
-            };
-            return map[key] || key;
-        };
-
         onMounted(fetchData);
 
         return {
@@ -200,7 +213,8 @@ createApp({
             login, logout, goHome, goToExam, goToExamRandom, goToPattern,
             getStatus, updateStatus, progressCount, isLoading,
             currentQuestion, currentPattern, form, checkMode,
-            enableCheckMode, gradeScale, grades, setGrade, totalScore, getLabel
+            enableCheckMode, gradeScale, grades, setGrade, totalScore,
+            comparisonStructure
         };
     }
 }).mount('#app');
