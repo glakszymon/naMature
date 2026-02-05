@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matura Ustna - Baza Pytań</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+    <div v-if="isLoading" class="loading-screen">
+        <div class="spinner"></div>
+        <p>Ładowanie bazy wiedzy...</p>
+    </div>
+    
+    <div v-if="!isLoggedIn && !isLoading" class="login-overlay">
+        <div class="login-card glass-panel">
+            <div class="login-header">
+                <span class="login-icon">🎓</span>
+                <h2>Witaj, Maturzysto!</h2>
+                <p>Zaloguj się, aby śledzić swoje postępy.</p>
+            </div>
+            
+            <div v-if="loginError" class="error-msg">{{ loginError }}</div>
+
+            <div class="input-wrapper">
+                <input type="text" v-model="usernameInput" @keyup.enter="login" placeholder="Twój login (np. User)" autofocus>
+            </div>
+            <button @click="login" class="btn-primary full-width">Zaloguj się</button>
+        </div>
+    </div>
+
+    <div v-if="isLoggedIn" class="app-wrapper">
+        <header class="glass-header">
+            <div class="brand">
+                <div class="logo-circle"></div>
+                <h1>Matura Ustna <span>2026</span></h1>
+            </div>
+            <div class="header-right">
+                <nav class="main-tabs">
+                    <button class="active">
+                        <span class="icon">📋</span> Baza pytań
+                    </button>
+                    <button @click="goToExamRandom">
+                        <span class="icon">🎲</span> Trening
+                    </button>
+                </nav>
+                <div class="user-pill">
+                    <span class="avatar">👤</span>
+                    <span class="username">{{ username }}</span>
+                    <button @click="logout" class="btn-icon-logout" title="Wyloguj">✕</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="content">
+            <div class="dashboard-hero">
+                <div class="hero-content">
+                    <h2>Twoje Postępy</h2>
+                    <p>Monitoruj stopień opanowania materiału.</p>
+                </div>
+                <div class="progress-stats">
+                    <div class="stat-circle">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle" :stroke-dasharray="Math.round((progressCount / (question_list.length || 1)) * 100) + ', 100'" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div class="stat-text">
+                            <strong>{{ progressCount }}</strong>
+                            <span>/ {{ question_list.length }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="questions-grid">
+                <div v-for="q in question_list" :key="q.id">
+                    <div class="question-card glass-panel" :class="'status-border-' + getStatus(q.id)">
+                        <div class="qc-header">
+                            <span class="q-badge">Pytanie #{{ q.id }}</span>
+                            <div class="qc-actions">
+                                <button class="btn-small btn-outline" @click="goToPattern(q.id)">
+                                    📖 Wzorzec
+                                </button>
+                                <button class="btn-small" @click="goToExam(q.id)">
+                                    Ćwicz to →
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <h3 class="q-title" @click="goToExam(q.id)">{{ q.pytanie }}</h3>
+
+                        <div class="mastery-control">
+                            <div class="slider-labels">
+                                <span :class="{ active: getStatus(q.id) == 0 }">Nie umiem</span>
+                                <span :class="{ active: getStatus(q.id) == 1 }">Słabo</span>
+                                <span :class="{ active: getStatus(q.id) == 2 }">Średnio</span>
+                                <span :class="{ active: getStatus(q.id) == 3 }">Umiem</span>
+                            </div>
+                            <div class="range-wrapper">
+                                <input type="range" min="0" max="3" step="1" 
+                                    :value="getStatus(q.id)" 
+                                    @input="updateStatus(q.id, $event.target.value)"
+                                    class="mastery-slider"
+                                    :class="'val-' + getStatus(q.id)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+<script src="script.js"></script>
+</body>
+</html>

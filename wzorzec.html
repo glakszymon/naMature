@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wzorzec Odpowiedzi</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+    <div v-if="isLoading" class="loading-screen"><div class="spinner"></div><p>Ładowanie wzorca...</p></div>
+
+    <div v-if="isLoggedIn && currentPattern" class="app-wrapper">
+        <header class="glass-header">
+            <div class="brand">
+                <button @click="goHome" class="btn-back-header">← Wróć do listy</button>
+            </div>
+            <div class="brand">
+                <h1>Wzorzec Odpowiedzi <span>#{{ currentPattern.id }}</span></h1>
+            </div>
+            <div class="user-pill">
+                <span class="avatar">👤</span> {{ username }}
+            </div>
+        </header>
+
+        <main class="content" style="max-width: 800px; margin: 0 auto;">
+            <div class="modal-body custom-scrollbar glass-panel" style="padding: 40px;">
+                <div class="comp-card key-panel">
+                    <h4>1. Wstęp i Teza</h4>
+                    <div class="comp-item"><span class="lbl">Wstęp:</span><p>{{ currentPattern.wstep }}</p></div>
+                    <div class="comp-item"><span class="lbl">Teza:</span><p>{{ currentPattern.teza }}</p></div>
+                </div>
+                <div class="comp-card key-panel">
+                    <h4>2. Argument I</h4>
+                    <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ currentPattern.arg1_tytul }}</p></div>
+                    <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ currentPattern.arg1_rozwiniecie }}</p></div>
+                    <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ currentPattern.arg1_przyklad }}</p></div>
+                    <div class="comp-item"><span class="lbl">Wniosek:</span><p>{{ currentPattern.arg1_wniosek }}</p></div>
+                </div>
+                <div class="comp-card key-panel">
+                    <h4>3. Argument II</h4>
+                    <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ currentPattern.arg2_tytul }}</p></div>
+                    <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ currentPattern.arg2_rozwiniecie }}</p></div>
+                    <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ currentPattern.arg2_przyklad }}</p></div>
+                    <div class="comp-item"><span class="lbl">Wniosek:</span><p>{{ currentPattern.arg2_wniosek }}</p></div>
+                </div>
+                <div class="comp-card key-panel">
+                    <h4>4. Zakończenie</h4>
+                    <div class="comp-item"><span class="lbl">Kontekst:</span><p>{{ currentPattern.kontekst }}</p></div>
+                    <div class="comp-item"><span class="lbl">Podsum.:</span><p>{{ currentPattern.podsumowanie }}</p></div>
+                </div>
+                
+                <div style="margin-top: 30px; text-align: center;">
+                    <button class="btn-primary" @click="goToExam(currentPattern.id)">Rozpocznij trening z tym tematem</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div v-else-if="isLoggedIn && !currentPattern && !isLoading" class="error-msg glass-panel" style="text-align: center; margin: 50px auto; max-width: 500px;">
+        <h3>Brak wzorca</h3>
+        <p>Nie znaleziono wzorca odpowiedzi dla wybranego ID lub klucz nie istnieje w bazie demo.</p>
+        <button @click="goHome" class="btn-primary" style="margin-top: 20px;">Wróć</button>
+    </div>
+</div>
+<script src="script.js"></script>
+</body>
+</html>

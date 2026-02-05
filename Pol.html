@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matura Ustna - Autoewaluacja</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+    <div v-if="isLoading" class="loading-screen">
+        <div class="spinner"></div>
+        <p>Ładowanie bazy wiedzy...</p>
+    </div>
+    
+    <div v-if="!isLoggedIn && !isLoading" class="login-overlay">
+        <div class="login-card glass-panel">
+            <div class="login-header">
+                <span class="login-icon">🎓</span>
+                <h2>Witaj, Maturzysto!</h2>
+                <p>Zaloguj się, aby śledzić swoje postępy.</p>
+            </div>
+            
+            <div v-if="loginError" class="error-msg">
+                {{ loginError }}
+            </div>
+
+            <div class="input-wrapper">
+                <input type="text" v-model="usernameInput" @keyup.enter="login" placeholder="Twój login (np. User)" autofocus>
+            </div>
+            <button @click="login" class="btn-primary full-width">
+                Zaloguj się
+            </button>
+        </div>
+    </div>
+
+    <div v-if="isLoggedIn" class="app-wrapper">
+        <header class="glass-header">
+            <div class="brand">
+                <div class="logo-circle"></div>
+                <h1>Matura Ustna <span>2026</span></h1>
+            </div>
+            
+            <div class="header-right">
+                <nav class="main-tabs">
+                    <button @click="switchTab('list')" :class="{ active: currentTab === 'list' }">
+                        <span class="icon">📋</span> Baza pytań
+                    </button>
+                    <button @click="switchTab('draw')" :class="{ active: currentTab === 'draw' }">
+                        <span class="icon">🎲</span> Trening
+                    </button>
+                </nav>
+                
+                <div class="user-pill">
+                    <span class="avatar">👤</span>
+                    <span class="username">{{ username }}</span>
+                    <button @click="logout" class="btn-icon-logout" title="Wyloguj">✕</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="content">
+            <transition name="fade" mode="out-in">
+                
+                <div v-if="currentTab === 'list'" key="list">
+                    <div class="dashboard-hero">
+                        <div class="hero-content">
+                            <h2>Twoje Postępy</h2>
+                            <p>Monitoruj stopień opanowania materiału.</p>
+                        </div>
+                        <div class="progress-stats">
+                            <div class="stat-circle">
+                                <svg viewBox="0 0 36 36" class="circular-chart">
+                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path class="circle" :stroke-dasharray="Math.round((progressCount / question_list.length) * 100) + ', 100'" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                </svg>
+                                <div class="stat-text">
+                                    <strong>{{ progressCount }}</strong>
+                                    <span>/ {{ question_list.length }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="questions-grid">
+                        <div v-for="q in question_list" :key="q.id">
+                            <div class="question-card glass-panel" :class="'status-border-' + getStatus(q.id)">
+                                <div class="qc-header">
+                                    <span class="q-badge">Pytanie #{{ q.id }}</span>
+                                    <div class="qc-actions">
+                                        <button class="btn-small btn-outline" @click.stop="openPreview(q.id)" title="Pokaż wzorzec odpowiedzi">
+                                            📖 Wzorzec
+                                        </button>
+                                        <button class="btn-small" @click="drawSpecific(q)">
+                                            Ćwicz to →
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <h3 class="q-title" @click="drawSpecific(q)">{{ q.pytanie }}</h3>
+
+                                <div class="mastery-control">
+                                    <div class="slider-labels">
+                                        <span :class="{ active: getStatus(q.id) == 0 }">Nie umiem</span>
+                                        <span :class="{ active: getStatus(q.id) == 1 }">Słabo</span>
+                                        <span :class="{ active: getStatus(q.id) == 2 }">Średnio</span>
+                                        <span :class="{ active: getStatus(q.id) == 3 }">Umiem</span>
+                                    </div>
+                                    <div class="range-wrapper">
+                                        <input 
+                                            type="range" 
+                                            min="0" 
+                                            max="3" 
+                                            step="1" 
+                                            :value="getStatus(q.id)" 
+                                            @input="updateStatus(q.id, $event.target.value)"
+                                            class="mastery-slider"
+                                            :class="'val-' + getStatus(q.id)"
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div> 
+                
+                <div v-else key="draw" class="draw-view">
+                    
+                    <div class="action-bar" v-if="!checkMode">
+                        <button @click="drawQuestion" class="btn-draw-large">
+                            <span class="dice">🎲</span> Wylosuj temat
+                        </button>
+                    </div>
+
+                    <transition name="slide-up">
+                        <div v-if="drawnQuestion" class="workspace">
+                            
+                            <div class="question-header-card glass-panel">
+                                <span class="qh-badge">Temat Wylosowany (#{{ drawnQuestion.id }})</span>
+                                <h3>{{ drawnQuestion.pytanie }}</h3>
+                            </div>
+
+                            <div v-if="!checkMode" class="editor-mode">
+                                <div class="editor-grid">
+                                    <section class="editor-card glass-panel">
+                                        <div class="card-title"><span class="step-num">1</span> Wstęp i Teza</div>
+                                        <div class="field-box">
+                                            <label>Wstęp</label>
+                                            <textarea v-model="form.intro" placeholder="Jak zaczniesz swoją wypowiedź?"></textarea>
+                                        </div>
+                                        <div class="field-box">
+                                            <label>Teza</label>
+                                            <textarea v-model="form.thesis" placeholder="Twoje główne stanowisko..."></textarea>
+                                        </div>
+                                    </section>
+
+                                    <section class="editor-card glass-panel">
+                                        <div class="card-title"><span class="step-num">2</span> Argument I</div>
+                                        <div class="field-box"><label>Tytuł Argumentu</label><input type="text" v-model="form.arg1"></div>
+                                        <div class="field-box"><label>Rozwinięcie</label><textarea v-model="form.arg1_dev"></textarea></div>
+                                        <div class="field-box"><label>Przykład (Lektura/Kultura)</label><textarea v-model="form.arg1_ex"></textarea></div>
+                                        <div class="field-box"><label>Wniosek cząstkowy</label><input type="text" v-model="form.arg1_sum"></div>
+                                    </section>
+
+                                    <section class="editor-card glass-panel">
+                                        <div class="card-title"><span class="step-num">3</span> Argument II</div>
+                                        <div class="field-box"><label>Tytuł Argumentu</label><input type="text" v-model="form.arg2"></div>
+                                        <div class="field-box"><label>Rozwinięcie</label><textarea v-model="form.arg2_dev"></textarea></div>
+                                        <div class="field-box"><label>Przykład (Lektura/Kultura)</label><textarea v-model="form.arg2_ex"></textarea></div>
+                                        <div class="field-box"><label>Wniosek cząstkowy</label><input type="text" v-model="form.arg2_sum"></div>
+                                    </section>
+
+                                    <section class="editor-card glass-panel">
+                                        <div class="card-title"><span class="step-num">4</span> Zakończenie</div>
+                                        <div class="field-box"><label>Kontekst / Nawiązanie</label><textarea v-model="form.context"></textarea></div>
+                                        <div class="field-box"><label>Podsumowanie całości</label><textarea v-model="form.summary"></textarea></div>
+                                    </section>
+                                </div>
+
+                                <div class="floating-action">
+                                    <button class="btn-check-mode" @click="enableCheckMode">
+                                        ✅ Przejdź do oceniania
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div v-else class="comparison-view">
+                                <div class="comparison-header glass-panel sticky-top">
+                                    <button @click="checkMode = false" class="btn-back">← Edycja</button>
+                                    
+                                    <div class="score-display-mini">
+                                        <span class="label">Twój Wynik:</span>
+                                        <span class="value" :class="{'high-score': totalScore >= 80}">{{ totalScore }}%</span>
+                                    </div>
+                                </div>
+
+                                <div class="comparison-columns">
+                                    <div class="col-user">
+                                        <div class="col-header user-header">Twoja Odpowiedź</div>
+                                        
+                                        <div class="comp-card glass-panel">
+                                            <h4>1. Wstęp i Teza</h4>
+                                            <div class="comp-item">
+                                                <span class="lbl">Wstęp:</span>
+                                                <p class="user-content">{{ form.intro || '---' }}</p>
+                                                <div class="grade-selector">
+                                                    <button v-for="g in gradeScale" :key="g.val" 
+                                                        @click="setGrade('intro', g.val)"
+                                                        :class="['g-btn', 'lvl-' + g.val, { active: grades.intro === g.val }]">
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="comp-item">
+                                                <span class="lbl">Teza:</span>
+                                                <p class="user-content">{{ form.thesis || '---' }}</p>
+                                                <div class="grade-selector">
+                                                    <button v-for="g in gradeScale" :key="g.val" 
+                                                        @click="setGrade('thesis', g.val)"
+                                                        :class="['g-btn', 'lvl-' + g.val, { active: grades.thesis === g.val }]">
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="comp-card glass-panel">
+                                            <h4>2. Argumentacja I</h4>
+                                            <div v-for="field in ['arg1', 'arg1_dev', 'arg1_ex', 'arg1_sum']" :key="field" class="comp-item">
+                                                <span class="lbl">{{ getLabel(field) }}:</span>
+                                                <p class="user-content">{{ form[field] || '---' }}</p>
+                                                <div class="grade-selector">
+                                                    <button v-for="g in gradeScale" :key="g.val" @click="setGrade(field, g.val)"
+                                                        :class="['g-btn', 'lvl-' + g.val, { active: grades[field] === g.val }]"></button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="comp-card glass-panel">
+                                            <h4>3. Argumentacja II</h4>
+                                            <div v-for="field in ['arg2', 'arg2_dev', 'arg2_ex', 'arg2_sum']" :key="field" class="comp-item">
+                                                <span class="lbl">{{ getLabel(field) }}:</span>
+                                                <p class="user-content">{{ form[field] || '---' }}</p>
+                                                <div class="grade-selector">
+                                                    <button v-for="g in gradeScale" :key="g.val" @click="setGrade(field, g.val)"
+                                                        :class="['g-btn', 'lvl-' + g.val, { active: grades[field] === g.val }]"></button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="comp-card glass-panel">
+                                            <h4>4. Zakończenie</h4>
+                                            <div v-for="field in ['context', 'summary']" :key="field" class="comp-item">
+                                                <span class="lbl">{{ getLabel(field) }}:</span>
+                                                <p class="user-content">{{ form[field] || '---' }}</p>
+                                                <div class="grade-selector">
+                                                    <button v-for="g in gradeScale" :key="g.val" @click="setGrade(field, g.val)"
+                                                        :class="['g-btn', 'lvl-' + g.val, { active: grades[field] === g.val }]"></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-answer">
+                                        <div class="col-header key-header">Klucz / Wzorzec</div>
+                                        <div v-if="currentAnswerKey" class="key-container">
+                                            <div class="comp-card key-panel">
+                                                <h4>Wzorzec Wstępu</h4>
+                                                <div class="comp-item"><span class="lbl">Wstęp:</span><p>{{ currentAnswerKey.wstep }}</p></div>
+                                                <div class="comp-item"><span class="lbl">Teza:</span><p>{{ currentAnswerKey.teza }}</p></div>
+                                            </div>
+                                            <div class="comp-card key-panel">
+                                                <h4>Wzorzec Arg I</h4>
+                                                <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ currentAnswerKey.arg1_tytul }}</p></div>
+                                                <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ currentAnswerKey.arg1_rozwiniecie }}</p></div>
+                                                <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ currentAnswerKey.arg1_przyklad }}</p></div>
+                                            </div>
+                                            <div class="comp-card key-panel">
+                                                <h4>Wzorzec Arg II</h4>
+                                                <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ currentAnswerKey.arg2_tytul }}</p></div>
+                                                <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ currentAnswerKey.arg2_rozwiniecie }}</p></div>
+                                                <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ currentAnswerKey.arg2_przyklad }}</p></div>
+                                            </div>
+                                            <div class="comp-card key-panel">
+                                                <h4>Wzorzec Finał</h4>
+                                                <div class="comp-item"><span class="lbl">Kontekst:</span><p>{{ currentAnswerKey.kontekst }}</p></div>
+                                                <div class="comp-item"><span class="lbl">Podsum.:</span><p>{{ currentAnswerKey.podsumowanie }}</p></div>
+                                            </div>
+                                        </div>
+                                        <div v-else class="no-key-msg glass-panel">
+                                            <span class="icon">⚠️</span>
+                                            <p>Brak klucza odpowiedzi dla tego pytania w bazie.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+            </transition>
+        </main>
+
+        <transition name="fade">
+            <div v-if="previewAnswer" class="modal-overlay" @click.self="closePreview">
+                <div class="modal-card glass-panel">
+                    <div class="modal-header">
+                        <h3>Wzorzec odpowiedzi (ID #{{ previewAnswer.id }})</h3>
+                        <button class="btn-close" @click="closePreview">✕</button>
+                    </div>
+                    <div class="modal-body custom-scrollbar">
+                        <div class="comp-card key-panel">
+                            <h4>1. Wstęp i Teza</h4>
+                            <div class="comp-item"><span class="lbl">Wstęp:</span><p>{{ previewAnswer.wstep }}</p></div>
+                            <div class="comp-item"><span class="lbl">Teza:</span><p>{{ previewAnswer.teza }}</p></div>
+                        </div>
+                        <div class="comp-card key-panel">
+                            <h4>2. Argument I</h4>
+                            <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ previewAnswer.arg1_tytul }}</p></div>
+                            <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ previewAnswer.arg1_rozwiniecie }}</p></div>
+                            <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ previewAnswer.arg1_przyklad }}</p></div>
+                            <div class="comp-item"><span class="lbl">Wniosek:</span><p>{{ previewAnswer.arg1_wniosek }}</p></div>
+                        </div>
+                        <div class="comp-card key-panel">
+                            <h4>3. Argument II</h4>
+                            <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ previewAnswer.arg2_tytul }}</p></div>
+                            <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ previewAnswer.arg2_rozwiniecie }}</p></div>
+                            <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ previewAnswer.arg2_przyklad }}</p></div>
+                            <div class="comp-item"><span class="lbl">Wniosek:</span><p>{{ previewAnswer.arg2_wniosek }}</p></div>
+                        </div>
+                        <div class="comp-card key-panel">
+                            <h4>4. Zakończenie</h4>
+                            <div class="comp-item"><span class="lbl">Kontekst:</span><p>{{ previewAnswer.kontekst }}</p></div>
+                            <div class="comp-item"><span class="lbl">Podsum.:</span><p>{{ previewAnswer.podsumowanie }}</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+    </div>
+</div>
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyMfloS94ZOdJ49Z5LFU6N2UmabTXF6Wop1_jMLJ-RvQH_0Gk6gD6wgE9ZqoYPCpHpk/exec';
+
+createApp({
+    setup() {
+        const question_list = ref([]);
+        const answer_database = ref([]);
+        const authorized_users = ref([]);
+        const all_progress_data = ref({}); 
+
+        const isLoading = ref(true);
+        const isSaving = ref(false);
+        const errorMsg = ref('');
+        const loginError = ref('');
+        
+        const usernameInput = ref('');
+        const username = ref('');
+        const isLoggedIn = ref(false);
+        
+        const userProgress = ref({});
+        const currentTab = ref('list');
+        const drawnQuestion = ref(null);
+        const checkMode = ref(false);
+        
+        // NOWE: Stan dla modala
+        const previewAnswer = ref(null);
+
+        const form = ref({
+            intro: '', thesis: '',
+            arg1: '', arg1_dev: '', arg1_ex: '', arg1_sum: '',
+            arg2: '', arg2_dev: '', arg2_ex: '', arg2_sum: '',
+            context: '', summary: ''
+        });
+
+        const gradeScale = [
+            { val: 0, label: 'Źle', class: 'lvl-0' },
+            { val: 1, label: 'Średnio', class: 'lvl-1' },
+            { val: 2, label: 'Dobrze', class: 'lvl-2' },
+            { val: 3, label: 'Bdb', class: 'lvl-3' }
+        ];
+        const grades = ref({});
+
+        const getStatus = (id) => {
+            return userProgress.value[id] !== undefined ? Number(userProgress.value[id]) : 0;
+        };
+
+        const updateStatus = async (id, status) => {
+            userProgress.value[id] = status;
+            isSaving.value = true;
+            try {
+                await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user: username.value,
+                        id: id,
+                        status: status
+                    })
+                });
+            } catch (e) {
+                console.error("Błąd zapisu statusu:", e);
+            } finally {
+                isSaving.value = false;
+            }
+        };
+
+        const progressCount = computed(() => {
+            let count = 0;
+            Object.values(userProgress.value).forEach(v => {
+                if (Number(v) === 3) count++;
+            });
+            return count;
+        });
+
+        const login = () => {
+            loginError.value = '';
+            const input = usernameInput.value.trim();
+            if (!input) { loginError.value = "Podaj nazwę użytkownika."; return; }
+
+            const userExists = authorized_users.value.some(u => u.nazwa.toLowerCase() === input.toLowerCase());
+            if (!userExists) { loginError.value = "Nie znaleziono użytkownika w bazie."; return; }
+
+            const dbUser = authorized_users.value.find(u => u.nazwa.toLowerCase() === input.toLowerCase());
+            username.value = dbUser.nazwa;
+
+            if (all_progress_data.value && all_progress_data.value[username.value]) {
+                userProgress.value = all_progress_data.value[username.value];
+            } else {
+                userProgress.value = {};
+            }
+
+            isLoggedIn.value = true;
+            localStorage.setItem('matura_last_user', username.value);
+        };
+
+        const logout = () => {
+            isLoggedIn.value = false;
+            username.value = '';
+            usernameInput.value = '';
+            userProgress.value = {};
+            localStorage.removeItem('matura_last_user');
+            switchTab('list');
+        };
+
+        const fetchData = async () => {
+            isLoading.value = true;
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL);
+                const data = await response.json();
+                question_list.value = data.questions || [];
+                answer_database.value = data.answers || [];
+                authorized_users.value = data.users || [];
+                all_progress_data.value = data.progress || {};
+
+                const savedUser = localStorage.getItem('matura_last_user');
+                if (savedUser) {
+                    usernameInput.value = savedUser;
+                    login();
+                }
+            } catch (e) {
+                console.error(e);
+                errorMsg.value = "Błąd pobierania danych.";
+            } finally {
+                isLoading.value = false;
+            }
+        };
+
+        onMounted(fetchData);
+
+        const currentAnswerKey = computed(() => {
+            if (!drawnQuestion.value) return null;
+            return answer_database.value.find(a => Number(a.id) === Number(drawnQuestion.value.id));
+        });
+
+        const totalScore = computed(() => {
+            const fields = Object.keys(grades.value);
+            if (fields.length === 0) return 0;
+            let sum = 0;
+            fields.forEach(f => sum += grades.value[f]);
+            return Math.round((sum / (fields.length * 3)) * 100);
+        });
+
+        const drawQuestion = () => {
+            checkMode.value = false;
+            if (question_list.value.length === 0) return;
+            const idx = Math.floor(Math.random() * question_list.value.length);
+            drawnQuestion.value = question_list.value[idx];
+            resetForm();
+        };
+
+        const drawSpecific = (q) => {
+            drawnQuestion.value = q;
+            resetForm();
+            switchTab('draw');
+        };
+
+        const resetForm = () => {
+            Object.keys(form.value).forEach(k => form.value[k] = '');
+            Object.keys(form.value).forEach(k => grades.value[k] = 0);
+            checkMode.value = false;
+        };
+        
+        // NOWE: Funkcje modala
+        const openPreview = (id) => {
+            const ans = answer_database.value.find(a => Number(a.id) === Number(id));
+            if (ans) {
+                previewAnswer.value = ans;
+            } else {
+                alert("Przepraszamy, brak wzorca odpowiedzi dla tego pytania w bazie demo.");
+            }
+        };
+        const closePreview = () => {
+            previewAnswer.value = null;
+        };
+
+        const setGrade = (field, val) => { grades.value[field] = val; };
+        const enableCheckMode = () => { 
+            checkMode.value = true; 
+            setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100); 
+        };
+        const switchTab = (tab) => { currentTab.value = tab; };
+
+        const getLabel = (key) => {
+            const map = {
+                'intro': 'Wstęp', 'thesis': 'Teza',
+                'arg1': 'Arg I', 'arg1_dev': 'Rozwinięcie', 'arg1_ex': 'Przykład', 'arg1_sum': 'Wniosek',
+                'arg2': 'Arg II', 'arg2_dev': 'Rozwinięcie', 'arg2_ex': 'Przykład', 'arg2_sum': 'Wniosek',
+                'context': 'Kontekst', 'summary': 'Podsumowanie'
+            };
+            return map[key] || key;
+        };
+
+        return {
+            question_list, answer_database, form, grades, gradeScale,
+            currentTab, drawnQuestion, checkMode,
+            isLoggedIn, username, usernameInput, login, logout, loginError,
+            userProgress, updateStatus, getStatus, 
+            progressCount, 
+            drawQuestion, drawSpecific, enableCheckMode, switchTab, setGrade,
+            currentAnswerKey, totalScore, getLabel,
+            isLoading, isSaving, errorMsg,
+            // NOWE
+            previewAnswer, openPreview, closePreview
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

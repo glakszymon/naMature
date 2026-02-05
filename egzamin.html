@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trening - Matura Ustna</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+    <div v-if="isLoading" class="loading-screen"><div class="spinner"></div><p>Ładowanie...</p></div>
+
+    <div v-if="isLoggedIn && currentQuestion" class="app-wrapper">
+        <header class="glass-header">
+            <div class="brand">
+                <button @click="goHome" class="btn-back-header">← Wróć do listy</button>
+            </div>
+            <div class="user-pill">
+                <span class="avatar">👤</span> {{ username }}
+            </div>
+        </header>
+
+        <main class="content">
+            <div class="workspace">
+                <div class="question-header-card glass-panel">
+                    <span class="qh-badge">Temat Treningowy (#{{ currentQuestion.id }})</span>
+                    <h3>{{ currentQuestion.pytanie }}</h3>
+                </div>
+
+                <div v-if="!checkMode" class="editor-mode">
+                    <div class="editor-grid">
+                        <section class="editor-card glass-panel">
+                            <div class="card-title"><span class="step-num">1</span> Wstęp i Teza</div>
+                            <div class="field-box"><label>Wstęp</label><textarea v-model="form.intro" placeholder="Jak zaczniesz?"></textarea></div>
+                            <div class="field-box"><label>Teza</label><textarea v-model="form.thesis" placeholder="Stanowisko..."></textarea></div>
+                        </section>
+
+                        <section class="editor-card glass-panel">
+                            <div class="card-title"><span class="step-num">2</span> Argument I</div>
+                            <div class="field-box"><label>Tytuł</label><input type="text" v-model="form.arg1"></div>
+                            <div class="field-box"><label>Rozwinięcie</label><textarea v-model="form.arg1_dev"></textarea></div>
+                            <div class="field-box"><label>Przykład</label><textarea v-model="form.arg1_ex"></textarea></div>
+                            <div class="field-box"><label>Wniosek</label><input type="text" v-model="form.arg1_sum"></div>
+                        </section>
+
+                        <section class="editor-card glass-panel">
+                            <div class="card-title"><span class="step-num">3</span> Argument II</div>
+                            <div class="field-box"><label>Tytuł</label><input type="text" v-model="form.arg2"></div>
+                            <div class="field-box"><label>Rozwinięcie</label><textarea v-model="form.arg2_dev"></textarea></div>
+                            <div class="field-box"><label>Przykład</label><textarea v-model="form.arg2_ex"></textarea></div>
+                            <div class="field-box"><label>Wniosek</label><input type="text" v-model="form.arg2_sum"></div>
+                        </section>
+
+                        <section class="editor-card glass-panel">
+                            <div class="card-title"><span class="step-num">4</span> Zakończenie</div>
+                            <div class="field-box"><label>Kontekst</label><textarea v-model="form.context"></textarea></div>
+                            <div class="field-box"><label>Podsumowanie</label><textarea v-model="form.summary"></textarea></div>
+                        </section>
+                    </div>
+
+                    <div class="floating-action">
+                        <button class="btn-check-mode" @click="enableCheckMode">✅ Przejdź do oceniania</button>
+                    </div>
+                </div>
+
+                <div v-else class="comparison-view">
+                    <div class="comparison-header glass-panel sticky-top">
+                        <button @click="checkMode = false" class="btn-back">← Popraw odpowiedź</button>
+                        <div class="score-display-mini">
+                            <span class="label">Wynik:</span>
+                            <span class="value" :class="{'high-score': totalScore >= 80}">{{ totalScore }}%</span>
+                        </div>
+                    </div>
+
+                    <div class="comparison-columns">
+                        <div class="col-user">
+                            <div class="col-header user-header">Twoja Odpowiedź</div>
+                            <div class="comp-card glass-panel" v-for="(section, sName) in {
+                                '1. Wstęp': ['intro', 'thesis'],
+                                '2. Argument I': ['arg1', 'arg1_dev', 'arg1_ex', 'arg1_sum'],
+                                '3. Argument II': ['arg2', 'arg2_dev', 'arg2_ex', 'arg2_sum'],
+                                '4. Finał': ['context', 'summary']
+                            }" :key="sName">
+                                <h4>{{ sName }}</h4>
+                                <div v-for="field in section" :key="field" class="comp-item">
+                                    <span class="lbl">{{ getLabel(field) }}:</span>
+                                    <p class="user-content">{{ form[field] || '---' }}</p>
+                                    <div class="grade-selector">
+                                        <button v-for="g in gradeScale" :key="g.val" 
+                                            @click="setGrade(field, g.val)"
+                                            :class="['g-btn', 'lvl-' + g.val, { active: grades[field] === g.val }]"></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-answer">
+                            <div class="col-header key-header">Klucz Odpowiedzi</div>
+                            <div v-if="currentPattern" class="key-container">
+                                <div class="comp-card key-panel">
+                                    <h4>Wzorzec</h4>
+                                    <div class="comp-item"><span class="lbl">Wstęp:</span><p>{{ currentPattern.wstep }}</p></div>
+                                    <div class="comp-item"><span class="lbl">Teza:</span><p>{{ currentPattern.teza }}</p></div>
+                                </div>
+                                <div class="comp-card key-panel">
+                                    <h4>Argument I</h4>
+                                    <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ currentPattern.arg1_tytul }}</p></div>
+                                    <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ currentPattern.arg1_rozwiniecie }}</p></div>
+                                    <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ currentPattern.arg1_przyklad }}</p></div>
+                                </div>
+                                <div class="comp-card key-panel">
+                                    <h4>Argument II</h4>
+                                    <div class="comp-item"><span class="lbl">Tytuł:</span><p>{{ currentPattern.arg2_tytul }}</p></div>
+                                    <div class="comp-item"><span class="lbl">Rozw.:</span><p>{{ currentPattern.arg2_rozwiniecie }}</p></div>
+                                    <div class="comp-item"><span class="lbl">Przykł.:</span><p>{{ currentPattern.arg2_przyklad }}</p></div>
+                                </div>
+                                <div class="comp-card key-panel">
+                                    <h4>Zakończenie</h4>
+                                    <div class="comp-item"><span class="lbl">Kontekst:</span><p>{{ currentPattern.kontekst }}</p></div>
+                                    <div class="comp-item"><span class="lbl">Podsum.:</span><p>{{ currentPattern.podsumowanie }}</p></div>
+                                </div>
+                            </div>
+                            <div v-else class="no-key-msg glass-panel">Brak klucza odpowiedzi.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div v-else-if="isLoggedIn && !currentQuestion && !isLoading" class="error-msg" style="text-align: center; margin-top: 50px;">
+        Nie wybrano pytania. <button @click="goHome">Wróć</button>
+    </div>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
