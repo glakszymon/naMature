@@ -99,6 +99,7 @@
                                         <button v-for="g in gradeScale" :key="g.val" 
                                             @click="setGrade(field.key, g.val)"
                                             :class="['g-btn', 'lvl-' + g.val, { active: grades[field.key] === g.val }]">
+                                            {{ g.label }}
                                         </button>
                                     </div>
                                 </div>

@@ -39,6 +39,7 @@ createApp({
         const grades = ref({ intro:0, thesis:0, arg1:0, arg1_dev:0, arg1_ex:0, arg1_sum:0, arg2:0, arg2_dev:0, arg2_ex:0, arg2_sum:0, context:0, summary:0 });
 
         // Struktura porównania (User <-> Pattern)
+        // ZMIANA: Dodano 'Wniosek' do patternFields w sekcji 2 i 3
         const comparisonStructure = {
             section1: {
                 title: '1. Wstęp i Teza',
@@ -62,7 +63,8 @@ createApp({
                 patternFields: [
                     { key: 'arg1_tytul', label: 'Tytuł' },
                     { key: 'arg1_rozwiniecie', label: 'Rozwinięcie' },
-                    { key: 'arg1_przyklad', label: 'Przykład' }
+                    { key: 'arg1_przyklad', label: 'Przykład' },
+                    { key: 'arg1_wniosek', label: 'Wniosek' } // Dodano tutaj
                 ]
             },
             section3: {
@@ -76,7 +78,8 @@ createApp({
                 patternFields: [
                     { key: 'arg2_tytul', label: 'Tytuł' },
                     { key: 'arg2_rozwiniecie', label: 'Rozwinięcie' },
-                    { key: 'arg2_przyklad', label: 'Przykład' }
+                    { key: 'arg2_przyklad', label: 'Przykład' },
+                    { key: 'arg2_wniosek', label: 'Wniosek' } // Dodano tutaj
                 ]
             },
             section4: {
@@ -103,7 +106,6 @@ createApp({
                 authorized_users.value = data.users || [];
                 all_progress_data.value = data.progress || {};
 
-                // Auto-login
                 const savedUser = localStorage.getItem('matura_last_user');
                 if (savedUser) {
                     usernameInput.value = savedUser;
